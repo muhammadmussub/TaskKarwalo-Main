@@ -1,0 +1,1 @@
+"ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS started_at TIMESTAMP WITH TIME ZONE;" 

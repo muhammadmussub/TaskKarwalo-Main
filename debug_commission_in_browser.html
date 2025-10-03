@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commission Payment Debug Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        .success { border-color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+        .error { border-color: #f87171; background: rgba(248, 113, 113, 0.1); }
+        .warning { border-color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #6b7280; cursor: not-allowed; }
+        input, select {
+            padding: 8px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #fff;
+            margin: 5px;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Commission Payment Debug Tool</h1>
+    <p>Run these tests in your browser to debug the commission payment issue.</p>
+
+    <!-- Environment Info -->
+    <div class="test-section">
+        <h3>🌍 Environment Information</h3>
+        <div id="env-result" class="result">Click "Check Environment" to see your current environment</div>
+        <button onclick="checkEnvironment()">Check Environment</button>
+    </div>
+
+    <!-- Authentication Test -->
+    <div class="test-section">
+        <h3>🔐 Authentication Test</h3>
+        <div id="auth-result" class="result">Click "Check Authentication" to verify your login status</div>
+        <button onclick="checkAuthentication()">Check Authentication</button>
+    </div>
+
+    <!-- Bucket Access Test -->
+    <div class="test-section">
+        <h3>🪣 Bucket Access Test</h3>
+        <div id="bucket-result" class="result">Click "Test Bucket Access" to check if the commission-proofs bucket is accessible</div>
+        <button onclick="testBucketAccess()">Test Bucket Access</button>
+    </div>
+
+    <!-- File Upload Test -->
+    <div class="test-section">
+        <h3>📁 File Upload Test</h3>
+        <input type="file" id="test-file" accept="image/*" onchange="showFileInfo()">
+        <div id="file-info"></div>
+        <div id="upload-result" class="result">Select a file and click "Test Upload" to test file upload</div>
+        <button onclick="testFileUpload()" id="upload-btn" disabled>Test Upload</button>
+    </div>
+
+    <!-- Commission Payment Test -->
+    <div class="test-section">
+        <h3>💰 Commission Payment Test</h3>
+        <label>Amount: <input type="number" id="test-amount" value="50" step="0.01"></label>
+        <label>Method:
+            <select id="test-method">
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="jazzcash">JazzCash</option>
+                <option value="easypaisa">EasyPaisa</option>
+            </select>
+        </label>
+        <div id="payment-result" class="result">Click "Test Payment Submission" to test the complete flow</div>
+        <button onclick="testCommissionPayment()" id="payment-btn">Test Payment Submission</button>
+    </div>
+
+    <!-- Debug Log -->
+    <div class="test-section">
+        <h3>📋 Debug Log</h3>
+        <div id="debug-log" class="result" style="max-height: 200px; overflow-y: auto;"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        // Initialize Supabase with your project's credentials
+        const supabaseUrl = 'https://vqqqdsmyytuvxrtwvifn.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxcXFkc215eXR1dnhydHd2aWZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0MjY2NzMsImV4cCI6MjA3NDAwMjY3M30.NRkeXmPrEnOvv4LClYuxCJMXZ2fJ6nqAmiHg_6Pjy-o';
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        function log(message, type = 'info') {
+            const debugLog = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f87171' : type === 'success' ? '#4ade80' : '#60a5fa';
+            debugLog.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        function clearLog() {
+            document.getElementById('debug-log').innerHTML = '';
+        }
+
+        async function checkEnvironment() {
+            const result = document.getElementById('env-result');
+            result.className = 'result';
+
+            try {
+                log('Checking environment...');
+
+                // Check if we're on the correct domain
+                const currentUrl = window.location.href;
+                log(`Current URL: ${currentUrl}`);
+
+                // Check if Supabase is loaded
+                if (typeof supabase === 'undefined') {
+                    throw new Error('Supabase client not loaded');
+                }
+
+                // Check browser info
+                const browserInfo = {
+                    userAgent: navigator.userAgent,
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine
+                };
+                log(`Browser info: ${JSON.stringify(browserInfo, null, 2)}`);
+
+                result.textContent = '✅ Environment check passed. Supabase loaded successfully.';
+                result.classList.add('success');
+                log('Environment check completed successfully', 'success');
+
+            } catch (error) {
+                result.textContent = `❌ Environment error: ${error.message}`;
+                result.classList.add('error');
+                log(`Environment error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkAuthentication() {
+            const result = document.getElementById('auth-result');
+            result.className = 'result';
+
+            try {
+                log('Checking authentication...');
+
+                const { data: { user }, error } = await supabase.auth.getUser();
+
+                if (error) {
+                    throw error;
+                }
+
+                if (user) {
+                    log(`User authenticated: ${user.id} (${user.email})`);
+                    result.textContent = `✅ Authenticated as: ${user.email} (ID: ${user.id})`;
+                    result.classList.add('success');
+                } else {
+                    log('No user authenticated');
+                    result.textContent = '⚠️ Not authenticated. Please log in first.';
+                    result.classList.add('warning');
+                }
+
+            } catch (error) {
+                result.textContent = `❌ Authentication error: ${error.message}`;
+                result.classList.add('error');
+                log(`Authentication error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBucketAccess() {
+            const result = document.getElementById('bucket-result');
+            result.className = 'result';
+
+            try {
+                log('Testing bucket access...');
+
+                const { data: buckets, error } = await supabase.storage.listBuckets();
+
+                if (error) {
+                    throw error;
+                }
+
+                log(`Available buckets: ${buckets.map(b => b.name).join(', ')}`);
+
+                const commissionBucket = buckets.find(b => b.name === 'commission-proofs');
+
+                if (commissionBucket) {
+                    log(`Commission bucket found: ${JSON.stringify(commissionBucket, null, 2)}`);
+                    result.textContent = `✅ Bucket accessible: ${commissionBucket.name} (${(commissionBucket.file_size_limit / (1024 * 1024)).toFixed(1)}MB limit)`;
+                    result.classList.add('success');
+                } else {
+                    log('Commission bucket NOT found in list');
+                    result.textContent = `❌ Bucket not found. Available: ${buckets.map(b => b.name).join(', ')}`;
+                    result.classList.add('error');
+                }
+
+            } catch (error) {
+                result.textContent = `❌ Bucket access error: ${error.message}`;
+                result.classList.add('error');
+                log(`Bucket access error: ${error.message}`, 'error');
+            }
+        }
+
+        function showFileInfo() {
+            const fileInput = document.getElementById('test-file');
+            const file = fileInput.files[0];
+            const uploadBtn = document.getElementById('upload-btn');
+
+            if (file) {
+                const fileInfo = document.getElementById('file-info');
+                fileInfo.innerHTML = `
+                    <strong>Selected File:</strong><br>
+                    Name: ${file.name}<br>
+                    Size: ${(file.size / 1024).toFixed(2)} KB<br>
+                    Type: ${file.type}<br>
+                    Last Modified: ${new Date(file.lastModified).toLocaleString()}
+                `;
+
+                // Validate file
+                const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                const maxSize = 3 * 1024 * 1024; // 3MB
+
+                if (!validTypes.includes(file.type)) {
+                    fileInfo.innerHTML += '<br><span style="color: #f87171;">❌ Invalid file type. Use JPG, PNG, or WebP.</span>';
+                    uploadBtn.disabled = true;
+                } else if (file.size > maxSize) {
+                    fileInfo.innerHTML += `<br><span style="color: #f87171;">❌ File too large. Max size: 3MB, your file: ${(file.size / (1024 * 1024)).toFixed(2)}MB</span>`;
+                    uploadBtn.disabled = true;
+                } else {
+                    fileInfo.innerHTML += '<br><span style="color: #4ade80;">✅ File is valid for upload</span>';
+                    uploadBtn.disabled = false;
+                }
+            } else {
+                uploadBtn.disabled = true;
+            }
+        }
+
+        async function testFileUpload() {
+            const result = document.getElementById('upload-result');
+            const fileInput = document.getElementById('test-file');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                result.textContent = '❌ Please select a file first';
+                result.classList.add('error');
+                return;
+            }
+
+            result.className = 'result';
+
+            try {
+                log('Testing file upload...');
+
+                const fileName = `debug_${Date.now()}_${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+                const filePath = `debug/${fileName}`;
+
+                log(`Uploading file: ${filePath}`);
+
+                const { data, error } = await supabase.storage
+                    .from('commission-proofs')
+                    .upload(filePath, file);
+
+                if (error) {
+                    throw error;
+                }
+
+                log(`Upload successful: ${data.path}`);
+                result.textContent = `✅ Upload successful: ${data.path}`;
+                result.classList.add('success');
+
+                // Clean up the test file
+                setTimeout(async () => {
+                    const { error: deleteError } = await supabase.storage
+                        .from('commission-proofs')
+                        .remove([data.path]);
+
+                    if (deleteError) {
+                        log(`Cleanup error: ${deleteError.message}`, 'error');
+                    } else {
+                        log('Test file cleaned up', 'success');
+                    }
+                }, 5000); // Clean up after 5 seconds
+
+            } catch (error) {
+                result.textContent = `❌ Upload error: ${error.message}`;
+                result.classList.add('error');
+                log(`Upload error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCommissionPayment() {
+            const result = document.getElementById('payment-result');
+            const amount = document.getElementById('test-amount').value;
+            const method = document.getElementById('test-method').value;
+
+            result.className = 'result';
+
+            try {
+                log('Testing commission payment submission...');
+
+                // First check authentication
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (!user) {
+                    throw new Error('Not authenticated. Please log in first.');
+                }
+
+                log(`Submitting payment for user: ${user.id}`);
+
+                // Create test payment data
+                const paymentData = {
+                    provider_id: user.id,
+                    amount: parseFloat(amount),
+                    payment_method: method,
+                    screenshot_url: 'https://example.com/test-screenshot.jpg',
+                    booking_count: 5,
+                    status: 'pending',
+                    submitted_at: new Date().toISOString()
+                };
+
+                log(`Payment data: ${JSON.stringify(paymentData, null, 2)}`);
+
+                const { data, error } = await supabase
+                    .from('commission_payments')
+                    .insert(paymentData)
+                    .select()
+                    .single();
+
+                if (error) {
+                    throw error;
+                }
+
+                log(`Payment submitted successfully: ${data.id}`);
+                result.textContent = `✅ Payment submitted: ${data.id}`;
+                result.classList.add('success');
+
+            } catch (error) {
+                result.textContent = `❌ Payment error: ${error.message}`;
+                result.classList.add('error');
+                log(`Payment error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run environment check on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkEnvironment, 1000);
+        });
+    </script>
+</body>
+</html>
